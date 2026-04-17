@@ -55,7 +55,7 @@
 /* ── Array visualizer ─────────────────────────────────── */
 
 .array-box {
-  transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
+  transition: all 0.25s ease;
 }
 
 .array-cell {

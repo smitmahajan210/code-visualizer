@@ -15,6 +15,10 @@ import {
   FiZap,
 } from 'react-icons/fi';
 
+// Speed label thresholds (ms)
+const SPEED_FAST_THRESHOLD = 300;
+const SPEED_MED_THRESHOLD = 900;
+
 // ─── Value renderer ────────────────────────────────────────────────────────────
 
 function renderValue(val) {
@@ -110,7 +114,7 @@ function ArrayVisualizer({ name, val, pointers, darkMode }) {
 
   // Build pointer→index map for this array
   const pointerAtIndex = {};
-  for (const [, ptr] of Object.entries(pointers)) {
+  for (const [_key, ptr] of Object.entries(pointers)) {
     if (ptr.index >= 0 && ptr.index < items.length) {
       if (!pointerAtIndex[ptr.index]) pointerAtIndex[ptr.index] = [];
       pointerAtIndex[ptr.index].push(ptr);
@@ -458,7 +462,7 @@ function StepControls({ stepIndex, totalSteps, onFirst, onBack, onForward, onLas
         </button>
 
         <span className={`text-xs ml-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          {totalSteps > 0 ? `${stepIndex + 1} / ${totalSteps}` : '—'}
+          {totalSteps > 0 ? `${stepIndex + 1} of ${totalSteps}` : '—'}
         </span>
       </div>
 
@@ -478,7 +482,7 @@ function StepControls({ stepIndex, totalSteps, onFirst, onBack, onForward, onLas
           title={`${speed}ms per step`}
         />
         <span className={`text-xs shrink-0 w-12 text-right font-mono ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-          {speed < 300 ? 'Fast' : speed < 900 ? 'Med' : 'Slow'}
+          {speed < SPEED_FAST_THRESHOLD ? 'Fast' : speed < SPEED_MED_THRESHOLD ? 'Med' : 'Slow'}
         </span>
       </div>
     </div>
