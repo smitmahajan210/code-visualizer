@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const analyzeCodeRouter = require('./routes/analyzeCode');
+const traceRouter = require('./routes/trace');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -12,6 +13,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Routes
 app.use('/api', analyzeCodeRouter);
+app.use('/api', traceRouter);
 
 // Health check
 app.get('/', (req, res) => {
