@@ -3,8 +3,9 @@ import './App.css';
 import ThemeToggle from './components/ThemeToggle';
 import CodeEditor from './components/CodeEditor';
 import CodeVisualization from './components/CodeVisualization';
+import ExecutionVisualizer from './components/ExecutionVisualizer';
 import Stats from './components/Stats';
-import { FiCode, FiLoader } from 'react-icons/fi';
+import { FiCode, FiLoader, FiPlay, FiBarChart2 } from 'react-icons/fi';
 
 const API_BASE = '/api';
 
@@ -19,6 +20,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [debounceTimer, setDebounceTimer] = useState(null);
+  const [activeTab, setActiveTab] = useState('structure'); // 'structure' | 'execution'
 
   // Toggle theme
   const toggleTheme = useCallback(() => setDarkMode((d) => !d), []);
@@ -170,25 +172,66 @@ export default function App() {
           />
         </div>
 
-        {/* Structure analysis — shown below the editor */}
+        {/* Structure analysis + Execution Visualizer — tabbed */}
         {(analysis || code) && (
           <div
-            className={`rounded-2xl p-4 ${darkMode ? 'glass-dark' : 'glass-light'}`}
+            className={`rounded-2xl ${darkMode ? 'glass-dark' : 'glass-light'}`}
           >
-            <h2
-              className={`text-sm font-semibold mb-3 ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}
+            {/* Tab bar */}
+            <div
+              className={`flex gap-1 px-4 pt-4 border-b
+                ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
             >
-              CODE STRUCTURE — Analysis
-            </h2>
-            <CodeVisualization
-              code={code}
-              language={displayLanguage}
-              analysis={analysis}
-              darkMode={darkMode}
-              showHighlight={false}
-            />
+              <button
+                onClick={() => setActiveTab('structure')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-sm font-semibold transition-colors
+                  ${activeTab === 'structure'
+                    ? darkMode
+                      ? 'bg-purple-900/50 text-purple-300 border border-b-0 border-gray-700'
+                      : 'bg-white text-purple-700 border border-b-0 border-gray-200'
+                    : darkMode
+                      ? 'text-gray-500 hover:text-gray-300'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+              >
+                <FiBarChart2 className="w-4 h-4" />
+                Structure Analysis
+              </button>
+              <button
+                onClick={() => setActiveTab('execution')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-sm font-semibold transition-colors
+                  ${activeTab === 'execution'
+                    ? darkMode
+                      ? 'bg-purple-900/50 text-purple-300 border border-b-0 border-gray-700'
+                      : 'bg-white text-purple-700 border border-b-0 border-gray-200'
+                    : darkMode
+                      ? 'text-gray-500 hover:text-gray-300'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+              >
+                <FiPlay className="w-4 h-4" />
+                Step-by-Step Execution
+              </button>
+            </div>
+
+            <div className="p-4">
+              {activeTab === 'structure' && (
+                <CodeVisualization
+                  code={code}
+                  language={displayLanguage}
+                  analysis={analysis}
+                  darkMode={darkMode}
+                  showHighlight={false}
+                />
+              )}
+              {activeTab === 'execution' && (
+                <ExecutionVisualizer
+                  code={code}
+                  language={displayLanguage}
+                  darkMode={darkMode}
+                />
+              )}
+            </div>
           </div>
         )}
       </main>
@@ -199,7 +242,7 @@ export default function App() {
           darkMode ? 'text-gray-600' : 'text-gray-400'
         }`}
       >
-        Code Visualizer · Built with React, Vite, Tailwind CSS &amp; Prism.js
+        Code Visualizer · Built with React, Vite, Tailwind CSS &amp; Prism.js · Step-by-step execution like Python Tutor
       </footer>
     </div>
   );
