@@ -1,0 +1,119 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Prism token overrides for dark/light theme */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #6a9955;
+}
+
+.token.punctuation {
+  color: #d4d4d4;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #b5cea8;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: #ce9178;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #d4d4d4;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #569cd6;
+}
+
+.token.function,
+.token.class-name {
+  color: #dcdcaa;
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #9cdcfe;
+}
+
+/* Light theme token overrides */
+.light-theme .token.comment,
+.light-theme .token.prolog,
+.light-theme .token.doctype,
+.light-theme .token.cdata {
+  color: #008000;
+}
+
+.light-theme .token.punctuation {
+  color: #393a34;
+}
+
+.light-theme .token.property,
+.light-theme .token.tag,
+.light-theme .token.boolean,
+.light-theme .token.number,
+.light-theme .token.constant {
+  color: #36acaa;
+}
+
+.light-theme .token.selector,
+.light-theme .token.attr-name,
+.light-theme .token.string,
+.light-theme .token.char,
+.light-theme .token.builtin {
+  color: #a31515;
+}
+
+.light-theme .token.keyword {
+  color: #0000ff;
+}
+
+.light-theme .token.function,
+.light-theme .token.class-name {
+  color: #795e26;
+}
+
+.light-theme .token.variable {
+  color: #001080;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(128, 128, 128, 0.4);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(128, 128, 128, 0.7);
+}
