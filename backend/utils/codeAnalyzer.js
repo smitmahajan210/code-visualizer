@@ -104,8 +104,8 @@ function parseJavaScript(code) {
     }
   }
 
-  // Imports
-  const importRegex = /^import\s+(?:.*\s+from\s+)?['"]([^'"]+)['"]/gm;
+  // Imports — use [^'"]* (no \s overlap) to avoid ReDoS
+  const importRegex = /^import\s+[^'"]*['"]([^'"]+)['"]/gm;
   while ((m = importRegex.exec(code)) !== null) {
     imports.push(m[1]);
   }
@@ -123,7 +123,8 @@ function parseTypeScript(code) {
   const types = [];
 
   let m;
-  const ifaceRegex = /interface\s+(\w+)(?:\s+extends\s+[\w,\s]+)?\s*\{/gm;
+  // Use [^{]* to skip extends/implements clause without \s overlap ReDoS risk
+  const ifaceRegex = /\binterface\s+(\w+)[^{]*\{/gm;
   while ((m = ifaceRegex.exec(code)) !== null) {
     interfaces.push({ name: m[1] });
   }
@@ -178,12 +179,14 @@ function parseJava(code) {
   const imports = [];
 
   let m;
-  const classRegex = /(?:public|private|protected|abstract|final|\s)*class\s+(\w+)(?:\s+extends\s+(\w+))?(?:\s+implements\s+([\w,\s]+))?\s*\{/gm;
+  // Use [^{]* to skip extends/implements clause — avoids [\w,\s]+\s* ReDoS
+  const classRegex = /\bclass\s+(\w+)(?:\s+extends\s+(\w+))?[^{]*\{/gm;
   while ((m = classRegex.exec(code)) !== null) {
-    classes.push({ name: m[1], extends: m[2] || null, implements: m[3] ? m[3].trim() : null });
+    classes.push({ name: m[1], extends: m[2] || null, implements: null });
   }
 
-  const methodRegex = /(?:public|private|protected|static|final|abstract|\s)+(\w[\w<>\[\]]*)\s+(\w+)\s*\(([^)]*)\)\s*(?:throws\s+[\w,\s]+)?\s*[\{;]/gm;
+  // Use explicit access-modifier list instead of |\s to avoid ReDoS
+  const methodRegex = /\b(?:public|private|protected)(?:\s+(?:static|final|abstract|synchronized))*\s+([\w<>\[\]]+)\s+(\w+)\s*\(([^)]*)\)[^{;]*[{;]/gm;
   while ((m = methodRegex.exec(code)) !== null) {
     if (!['if', 'for', 'while', 'switch', 'catch'].includes(m[2])) {
       functions.push({ name: m[2], returnType: m[1], params: m[3].trim(), type: 'method' });
@@ -195,7 +198,8 @@ function parseJava(code) {
     imports.push(m[1]);
   }
 
-  const varRegex = /(?:private|protected|public|static|final|\s)+(?:int|double|float|long|String|boolean|char|byte|short|[\w<>\[\]]+)\s+(\w+)\s*[=;]/gm;
+  // Use explicit access-modifier list instead of |\s to avoid ReDoS
+  const varRegex = /\b(?:private|protected|public|static|final)(?:\s+(?:private|protected|public|static|final))*\s+(?:int|double|float|long|String|boolean|char|byte|short|\w[\w<>\[\]]*)\s+(\w+)\s*[=;]/gm;
   while ((m = varRegex.exec(code)) !== null) {
     variables.push({ name: m[1], kind: 'field' });
   }
@@ -210,9 +214,10 @@ function parseCpp(code) {
   const includes = [];
 
   let m;
-  const includeRegex = /#include\s*[<"]([^>"]+)[>"]/gm;
+  // Separate angle-bracket and quoted includes to avoid ambiguous [<"] ... [>"] ReDoS
+  const includeRegex = /#include\s*(?:<([^>]+)>|"([^"]+)")/gm;
   while ((m = includeRegex.exec(code)) !== null) {
-    includes.push(m[1]);
+    includes.push(m[1] || m[2]);
   }
 
   const classRegex = /(?:class|struct)\s+(\w+)(?:\s*:\s*(?:public|private|protected)\s+(\w+))?\s*\{/gm;
@@ -220,10 +225,11 @@ function parseCpp(code) {
     classes.push({ name: m[1], extends: m[2] || null });
   }
 
-  const funcRegex = /(?:[\w:*&<>\[\]]+)\s+(\w+)\s*\(([^)]*)\)\s*(?:const\s*)?\s*\{/gm;
+  // Use [^{]* to skip const/noexcept qualifiers without nested \s* ReDoS
+  const funcRegex = /\b([\w:]+(?:\s*[*&]+)?)\s+(\w+)\s*\(([^)]*)\)[^{]*\{/gm;
   while ((m = funcRegex.exec(code)) !== null) {
-    if (!['if', 'for', 'while', 'switch', 'catch'].includes(m[1])) {
-      functions.push({ name: m[1], params: m[2].trim(), type: 'function' });
+    if (!['if', 'for', 'while', 'switch', 'catch'].includes(m[2])) {
+      functions.push({ name: m[2], params: m[3].trim(), type: 'function' });
     }
   }
 
@@ -272,7 +278,8 @@ function parseCss(code) {
   const properties = [];
 
   let m;
-  const selectorRegex = /([.#]?[\w-]+(?::[:\w-]+)?)\s*\{/gm;
+  // Use :{1,2}[\w-]+ instead of :[:\w-]+ to avoid overlapping character class ReDoS
+  const selectorRegex = /([.#]?[\w-]+(?::{1,2}[\w-]+)*)\s*\{/gm;
   while ((m = selectorRegex.exec(code)) !== null) {
     selectors.push(m[1]);
   }
@@ -329,16 +336,17 @@ function parseGeneric(code) {
 
 // ─── Main analyzer ───────────────────────────────────────────────────────────
 
-const PARSERS = {
-  javascript: parseJavaScript,
-  typescript: parseTypeScript,
-  python: parsePython,
-  java: parseJava,
-  cpp: parseCpp,
-  html: parseHtml,
-  css: parseCss,
-  sql: parseSql,
-};
+// Use a Map so user-controlled language values cannot reach Object.prototype
+const PARSERS = new Map([
+  ['javascript', parseJavaScript],
+  ['typescript', parseTypeScript],
+  ['python', parsePython],
+  ['java', parseJava],
+  ['cpp', parseCpp],
+  ['html', parseHtml],
+  ['css', parseCss],
+  ['sql', parseSql],
+]);
 
 function analyzeCode(code, language) {
   const totalLines = countLines(code);
@@ -348,7 +356,7 @@ function analyzeCode(code, language) {
   const avgLineLength = code.length > 0 ? Math.round(code.length / totalLines) : 0;
   const charCount = code.length;
 
-  const parser = PARSERS[language] || parseGeneric;
+  const parser = PARSERS.get(language) || parseGeneric;
   const structure = parser(code);
 
   return {
