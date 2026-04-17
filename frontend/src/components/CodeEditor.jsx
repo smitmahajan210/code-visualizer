@@ -1,5 +1,38 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
+import 'prismjs/components/prism-csharp';
+import 'prismjs/components/prism-markup';
+import 'prismjs/components/prism-markup-templating';
+import 'prismjs/components/prism-css';
+import 'prismjs/components/prism-sql';
+import 'prismjs/components/prism-rust';
+import 'prismjs/components/prism-go';
+import 'prismjs/components/prism-ruby';
+import 'prismjs/components/prism-php';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-jsx';
+import 'prismjs/components/prism-tsx';
 import { FiUpload, FiClipboard, FiTrash2 } from 'react-icons/fi';
+
+const LANG_MAP = {
+  javascript: 'jsx',
+  typescript: 'tsx',
+  python: 'python',
+  java: 'java',
+  cpp: 'cpp',
+  csharp: 'csharp',
+  html: 'markup',
+  css: 'css',
+  sql: 'sql',
+  rust: 'rust',
+  go: 'go',
+  ruby: 'ruby',
+  php: 'php',
+};
 
 const LANGUAGES = [
   { value: 'auto', label: '🔍 Auto Detect' },
@@ -18,8 +51,32 @@ const LANGUAGES = [
   { value: 'php', label: 'PHP' },
 ];
 
-export default function CodeEditor({ code, language, onCodeChange, onLanguageChange, darkMode }) {
+export default function CodeEditor({ code, language, displayLanguage, onCodeChange, onLanguageChange, darkMode }) {
   const fileInputRef = useRef(null);
+  const codeRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  const prismLang = LANG_MAP[displayLanguage] || 'javascript';
+
+  // Re-highlight whenever code or language changes
+  useEffect(() => {
+    if (codeRef.current) {
+      codeRef.current.textContent = code;
+      try {
+        Prism.highlightElement(codeRef.current);
+      } catch (err) {
+        console.warn('Prism highlight error:', err);
+      }
+    }
+  }, [code, language, prismLang]);
+
+  // Auto-resize textarea so the outer container scroll drives both layers
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [code]);
 
   const handleFileUpload = useCallback((e) => {
     const file = e.target.files[0];
@@ -41,8 +98,10 @@ export default function CodeEditor({ code, language, onCodeChange, onLanguageCha
 
   const handleClear = useCallback(() => onCodeChange(''), [onCodeChange]);
 
+  const lines = code ? code.split('\n').length : 1;
+
   return (
-    <div className="flex flex-col gap-3 h-full">
+    <div className="flex flex-col gap-3">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Language selector */}
@@ -130,47 +189,65 @@ export default function CodeEditor({ code, language, onCodeChange, onLanguageCha
         </div>
       </div>
 
-      {/* Textarea with line numbers */}
+      {/* Inline highlighted editor */}
       <div
         className={`
-          relative flex flex-1 rounded-xl overflow-hidden font-mono text-sm
+          flex rounded-xl overflow-auto font-mono text-sm
           ${darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-gray-50 border border-gray-200'}
         `}
+        style={{ maxHeight: '60vh' }}
       >
         {/* Line numbers */}
-        <LineNumbers code={code} darkMode={darkMode} />
-
-        {/* Code textarea */}
-        <textarea
-          value={code}
-          onChange={(e) => onCodeChange(e.target.value)}
-          placeholder="// Paste or type your code here…"
-          spellCheck={false}
+        <div
+          aria-hidden="true"
           className={`
-            code-textarea flex-1 p-4 outline-none bg-transparent
-            ${darkMode ? 'text-gray-100 placeholder-gray-600' : 'text-gray-800 placeholder-gray-400'}
+            select-none text-right px-3 py-4 min-w-[3rem] shrink-0 sticky left-0
+            ${darkMode ? 'text-gray-600 bg-gray-800/60' : 'text-gray-400 bg-gray-100'}
           `}
-          style={{ minHeight: '400px' }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function LineNumbers({ code, darkMode }) {
-  const lines = code ? code.split('\n').length : 1;
-  return (
-    <div
-      className={`
-        select-none text-right px-3 py-4 min-w-[3rem]
-        ${darkMode ? 'text-gray-600 bg-gray-800/60' : 'text-gray-400 bg-gray-100'}
-      `}
-    >
-      {Array.from({ length: lines }, (_, i) => (
-        <div key={i} className="leading-[1.6] text-xs">
-          {i + 1}
+        >
+          {Array.from({ length: lines }, (_, i) => (
+            <div key={i} className="leading-[1.6] text-xs font-mono">
+              {i + 1}
+            </div>
+          ))}
         </div>
-      ))}
+
+        {/* Overlay: highlight layer behind transparent textarea */}
+        <div className="relative flex-1">
+          {/* Syntax-highlighted layer */}
+          <pre
+            aria-hidden="true"
+            className="code-highlight absolute inset-0 m-0 p-4 pointer-events-none overflow-hidden"
+            style={{ background: 'transparent', zIndex: 1 }}
+          >
+            <code
+              ref={codeRef}
+              className={`language-${prismLang}`}
+              style={{ background: 'transparent', fontSize: '0.875rem', lineHeight: '1.6' }}
+            />
+          </pre>
+
+          {/* Editable textarea — transparent text, visible caret */}
+          <textarea
+            ref={textareaRef}
+            value={code}
+            onChange={(e) => onCodeChange(e.target.value)}
+            placeholder="// Paste or type your code here…"
+            spellCheck={false}
+            className="code-textarea w-full p-4 outline-none bg-transparent editor-textarea"
+            style={{
+              position: 'relative',
+              zIndex: 2,
+              color: 'transparent',
+              caretColor: darkMode ? '#e5e7eb' : '#111827',
+              resize: 'none',
+              overflow: 'hidden',
+              minHeight: '400px',
+              display: 'block',
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

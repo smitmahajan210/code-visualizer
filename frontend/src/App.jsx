@@ -123,7 +123,7 @@ export default function App() {
       </header>
 
       {/* ── Main ───────────────────────────────────────────────────────── */}
-      <main className="max-w-screen-2xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
         {/* Stats bar */}
         {analysis?.metrics && (
           <Stats metrics={analysis.metrics} darkMode={darkMode} />
@@ -142,29 +142,36 @@ export default function App() {
           </div>
         )}
 
-        {/* Two-column editor + visualization */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {/* Left: Code Editor */}
-          <div
-            className={`rounded-2xl p-4 ${darkMode ? 'glass-dark' : 'glass-light'}`}
+        {/* Full-width inline highlighted editor */}
+        <div
+          className={`rounded-2xl p-4 ${darkMode ? 'glass-dark' : 'glass-light'}`}
+        >
+          <h2
+            className={`text-sm font-semibold mb-3 ${
+              darkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}
           >
-            <h2
-              className={`text-sm font-semibold mb-3 ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}
-            >
-              INPUT — Code Editor
-            </h2>
-            <CodeEditor
-              code={code}
-              language={language}
-              onCodeChange={setCode}
-              onLanguageChange={setLanguage}
-              darkMode={darkMode}
-            />
-          </div>
+            CODE EDITOR — Syntax Highlighting &amp; Visualization
+            {loading && (
+              <FiLoader
+                className={`inline-block ml-2 w-3.5 h-3.5 animate-spin align-middle ${
+                  darkMode ? 'text-purple-400' : 'text-purple-600'
+                }`}
+              />
+            )}
+          </h2>
+          <CodeEditor
+            code={code}
+            language={language}
+            displayLanguage={displayLanguage}
+            onCodeChange={setCode}
+            onLanguageChange={setLanguage}
+            darkMode={darkMode}
+          />
+        </div>
 
-          {/* Right: Visualization */}
+        {/* Structure analysis — shown below the editor */}
+        {(analysis || code) && (
           <div
             className={`rounded-2xl p-4 ${darkMode ? 'glass-dark' : 'glass-light'}`}
           >
@@ -173,23 +180,17 @@ export default function App() {
                 darkMode ? 'text-gray-300' : 'text-gray-600'
               }`}
             >
-              OUTPUT — Syntax Highlighted &amp; Structure
-              {loading && (
-                <FiLoader
-                  className={`inline-block ml-2 w-3.5 h-3.5 animate-spin align-middle ${
-                    darkMode ? 'text-purple-400' : 'text-purple-600'
-                  }`}
-                />
-              )}
+              CODE STRUCTURE — Analysis
             </h2>
             <CodeVisualization
               code={code}
               language={displayLanguage}
               analysis={analysis}
               darkMode={darkMode}
+              showHighlight={false}
             />
           </div>
-        </div>
+        )}
       </main>
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
