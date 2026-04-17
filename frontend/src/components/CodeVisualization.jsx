@@ -390,7 +390,7 @@ function SqlStructure({ structure, darkMode }) {
 
 // ─── Main Visualization component ────────────────────────────────────────────
 
-export default function CodeVisualization({ code, language, analysis, darkMode }) {
+export default function CodeVisualization({ code, language, analysis, darkMode, showHighlight = true }) {
   if (!code) {
     return (
       <div
@@ -400,7 +400,7 @@ export default function CodeVisualization({ code, language, analysis, darkMode }
         <div>
           <FiCode className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p className="text-lg font-medium">No code to visualize</p>
-          <p className="text-sm mt-1">Paste or type your code in the editor on the left</p>
+          <p className="text-sm mt-1">Paste or type your code in the editor above</p>
         </div>
       </div>
     );
@@ -411,8 +411,8 @@ export default function CodeVisualization({ code, language, analysis, darkMode }
 
   return (
     <div className="space-y-4">
-      {/* Syntax highlighted code */}
-      <HighlightedCode code={code} language={language} darkMode={darkMode} />
+      {/* Syntax highlighted code (hidden when inline highlighting is active in the editor) */}
+      {showHighlight && <HighlightedCode code={code} language={language} darkMode={darkMode} />}
 
       {/* Structure sections */}
       {language === 'html' && <HtmlStructure structure={structure} darkMode={darkMode} />}

@@ -28,6 +28,11 @@
   tab-size: 2;
 }
 
+/* Placeholder visible even when the textarea text colour is transparent */
+.editor-textarea::placeholder {
+  color: rgba(156, 163, 175, 0.6);
+}
+
 /* Highlighted code output */
 .code-highlight {
   font-family: 'Fira Code', 'JetBrains Mono', Consolas, monospace;
