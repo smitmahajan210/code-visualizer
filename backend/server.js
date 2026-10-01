@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const analyzeCodeRouter = require('./routes/analyzeCode');
@@ -15,7 +17,18 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api', analyzeCodeRouter);
 app.use('/api', traceRouter);
 
-// Handle malformed JSON bodies (e.g. bad escapes) with a clean 400.
+// Serve frontend static build in production if available
+const frontendDist = path.join(__dirname, '../frontend/dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(frontendDist, 'index.html'));
+    }
+  });
+}
+
+// Handle malformed JSON bodies
 app.use((err, req, res, next) => {
   if (err && err instanceof SyntaxError && 'body' in err) {
     return res.status(400).json({ error: 'Invalid JSON in request body' });
@@ -23,11 +36,7 @@ app.use((err, req, res, next) => {
   return next(err);
 });
 
-// Health check
-app.get('/', (req, res) => {
-  res.json({ status: 'ok', message: 'Code Visualizer API is running' });
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
