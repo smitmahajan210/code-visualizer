@@ -273,6 +273,24 @@ function FrameCard({ frame, darkMode, isActive }) {
   );
 }
 
+// Helper to identify non-user environment noise in global scope
+function isJunkGlobal(key, val) {
+  if (key.startsWith('__')) return true;
+  if (['Solution', 'solution', 'List', 'Dict', 'Tuple', 'Set', 'Optional', 'Union'].includes(key)) return true;
+  if (!val) return true;
+  const repr = String(val.value || '');
+  if (
+    repr.includes('<class') ||
+    repr.includes('<function') ||
+    repr.includes('<module') ||
+    repr.includes('_SpecialGenericAlias') ||
+    repr.includes('<__main__.')
+  ) {
+    return true;
+  }
+  return false;
+}
+
 // ─── Memory Panel ─────────────────────────────────────────────────────────────
 
 function MemoryPanel({ step, darkMode }) {
@@ -293,6 +311,29 @@ function MemoryPanel({ step, darkMode }) {
     line: darkMode ? 'bg-yellow-900/30 text-yellow-300 border-yellow-700' : 'bg-yellow-50 text-yellow-700 border-yellow-200',
   };
   const eventLabels = { call: '📞 Function call', return: '↩ Return', exception: '⚠ Exception', line: '→ Executing' };
+
+  // Find global frame and filter out environment noise (Solution, List, solution object, etc.)
+  const globalFrame = frames.find((f) => f.funcName === 'global');
+  const globalLocals = globalFrame?.locals || {};
+  const cleanGlobals = Object.entries(globalLocals).filter(([k, v]) => !isJunkGlobal(k, v));
+
+  // Extract input arrays/lists from global scope to show prominently at top (stable/static, no moving pointers)
+  const globalArrays = cleanGlobals.filter(
+    ([, v]) => v && (v.type === 'list' || v.type === 'Array' || v.type === 'tuple') && Array.isArray(v.value) && v.value.length > 0
+  );
+
+  // Active stack frame pointers (e.g. pointers in active function call like i, left, right)
+  const activeFrame = frames[frames.length - 1];
+  const activeLocals = activeFrame?.locals || {};
+
+  // Function frames (exclude 'global' container so active function frame isn't pushed down)
+  const functionFrames = frames.filter((f) => f.funcName !== 'global');
+  const framesToDisplay =
+    functionFrames.length > 0
+      ? functionFrames
+      : globalFrame
+      ? [{ ...globalFrame, locals: Object.fromEntries(cleanGlobals) }]
+      : [];
 
   return (
     <div className="h-full overflow-auto pr-1 space-y-2">
@@ -325,12 +366,25 @@ function MemoryPanel({ step, darkMode }) {
         </div>
       )}
 
-      {/* Call stack frames */}
-      {frames.length === 0 ? (
+      {/* Original Input Array Section (Static, stable, no moving pointers) */}
+      {globalArrays.length > 0 && (
+        <div className={`p-3 rounded-xl border mb-3 ${darkMode ? 'border-purple-500/40 bg-purple-950/20' : 'border-purple-200 bg-purple-50/60'}`}>
+          <div className={`text-[11px] font-bold uppercase tracking-wider mb-2 flex items-center justify-between ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>
+            <span>📊 Original Input Array</span>
+            <span className="text-[10px] opacity-60 font-normal font-sans">Stable Reference</span>
+          </div>
+          {globalArrays.map(([k, v]) => (
+            <ArrayVisualizer key={k} name={k} val={v} pointers={{}} darkMode={darkMode} />
+          ))}
+        </div>
+      )}
+
+      {/* Call stack frames (Active function frame with live animated pointers) */}
+      {framesToDisplay.length === 0 ? (
         <p className={`text-xs italic ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>Empty call stack</p>
       ) : (
-        frames.map((frame, i) => (
-          <FrameCard key={i} frame={frame} darkMode={darkMode} isActive={i === frames.length - 1} />
+        framesToDisplay.map((frame, i) => (
+          <FrameCard key={i} frame={frame} darkMode={darkMode} isActive={i === framesToDisplay.length - 1} />
         ))
       )}
     </div>
@@ -513,7 +567,7 @@ function OutputPanel({ stdout, darkMode }) {
 
 // ─── Main ExecutionVisualizer ─────────────────────────────────────────────────
 
-export default function ExecutionVisualizer({ code, language, darkMode }) {
+export default function ExecutionVisualizer({ code, language, darkMode, onStepChange }) {
   const [traceResult, setTraceResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -568,10 +622,21 @@ export default function ExecutionVisualizer({ code, language, darkMode }) {
 
   const steps = traceResult?.steps || [];
   const currentStep = steps[stepIndex] || null;
+  const nextStep = steps[stepIndex + 1] || null;
   const currentLine = currentStep?.line ?? null;
-  // Look ahead for next line
-  const nextLine = steps[stepIndex + 1]?.line ?? null;
+  const nextLine = nextStep?.line ?? null;
   const hasPerStepStdout = steps.some((s) => typeof s?.stdout === 'string' && s.stdout.length > 0);
+
+  // Notify parent component of current line step changes for editor highlighting
+  useEffect(() => {
+    if (onStepChange) {
+      if (traceResult && steps.length > 0) {
+        onStepChange(currentStep, nextStep);
+      } else {
+        onStepChange(null, null);
+      }
+    }
+  }, [currentStep, nextStep, traceResult, steps.length, onStepChange]);
 
   if (!code?.trim()) {
     return (
@@ -629,17 +694,24 @@ export default function ExecutionVisualizer({ code, language, darkMode }) {
       {/* Main visualization area */}
       {traceResult && steps.length > 0 && (
         <div className="flex flex-col gap-4 flex-1">
-          {/* Code + Memory side-by-side within the right panel */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <CodePanel code={code} currentLine={currentLine} nextLine={nextLine} darkMode={darkMode} />
+          {/* Trace header */}
+          <div className="flex items-center justify-between">
+            <div className={`text-sm font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+              Execution Trace
             </div>
-            <div
-              className={`rounded-xl border p-3 overflow-auto ${darkMode ? 'border-gray-700 bg-gray-800/30' : 'border-gray-200 bg-white'}`}
-              style={{ minHeight: '200px', maxHeight: '360px' }}
+            <div className={`text-xs font-mono px-2 py-1 rounded-lg border
+              ${darkMode ? 'bg-gray-800/60 border-gray-700 text-gray-300' : 'bg-white border-gray-200 text-gray-700'}`}
             >
-              <MemoryPanel step={currentStep} darkMode={darkMode} />
+              Step {stepIndex + 1} / {steps.length}
             </div>
+          </div>
+
+          {/* Full-width Memory & Visualizer Panel */}
+          <div
+            className={`rounded-xl border p-4 overflow-auto ${darkMode ? 'border-gray-700 bg-gray-800/30' : 'border-gray-200 bg-white'}`}
+            style={{ minHeight: '300px', maxHeight: '450px' }}
+          >
+            <MemoryPanel step={currentStep} darkMode={darkMode} />
           </div>
 
           {/* Step controls */}

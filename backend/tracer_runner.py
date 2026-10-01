@@ -11,6 +11,8 @@ MAX_STEPS = 500
 # Restricted builtins for user code execution – omits dangerous callables such
 # as open, eval, exec, compile, __import__, breakpoint, etc.
 _BUILTINS_WHITELIST = (
+    # Needed for `class Foo:` statements
+    "__build_class__",
     "abs", "all", "any", "ascii", "bin", "bool", "bytearray", "bytes",
     "callable", "chr", "complex", "dict", "dir", "divmod", "enumerate",
     "filter", "float", "format", "frozenset", "getattr", "globals",
@@ -19,6 +21,8 @@ _BUILTINS_WHITELIST = (
     "object", "oct", "ord", "pow", "print", "property", "range",
     "repr", "reversed", "round", "set", "slice", "sorted",
     "str", "sum", "super", "tuple", "type", "vars", "zip",
+    # Common class-related helpers
+    "classmethod", "staticmethod",
     # Exception types
     "ArithmeticError", "AssertionError", "AttributeError", "BaseException",
     "BufferError", "EOFError", "EnvironmentError", "Exception",
@@ -43,6 +47,34 @@ _SAFE_BUILTINS = {
     for name in _BUILTINS_WHITELIST
     if hasattr(_builtins_module, name)
 }
+
+# Allow a small, safe subset of standard-library imports commonly used in
+# programming challenges. Everything else is blocked.
+_ALLOWED_IMPORT_ROOTS = {
+    "typing",
+    "math",
+    "collections",
+    "functools",
+    "itertools",
+    "heapq",
+    "bisect",
+    "operator",
+    "string",
+    "re",
+}
+
+
+def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):  # noqa: A002
+    if level and level != 0:
+        raise ImportError("Relative imports are not allowed")
+    root = (name or "").split(".", 1)[0]
+    if root not in _ALLOWED_IMPORT_ROOTS:
+        allowed = ", ".join(sorted(_ALLOWED_IMPORT_ROOTS))
+        raise ImportError(f"Import '{name}' is not allowed. Allowed: {allowed}")
+    return _builtins_module.__import__(name, globals, locals, fromlist, level)
+
+
+_SAFE_BUILTINS["__import__"] = _safe_import
 
 
 class _Capture:

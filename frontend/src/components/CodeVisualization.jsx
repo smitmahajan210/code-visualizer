@@ -124,7 +124,7 @@ function HighlightedCode({ code, language, darkMode }) {
         {/* Code */}
         <pre
           className={`code-highlight flex-1 p-4 m-0 overflow-x-auto ${
-            darkMode ? 'bg-gray-900' : 'bg-gray-50'
+            darkMode ? 'bg-gray-900 text-gray-200' : 'bg-gray-50 text-gray-800'
           }`}
           style={{ background: 'transparent' }}
         >

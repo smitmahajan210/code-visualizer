@@ -51,12 +51,21 @@ const LANGUAGES = [
   { value: 'php', label: 'PHP' },
 ];
 
-export default function CodeEditor({ code, language, displayLanguage, onCodeChange, onLanguageChange, darkMode }) {
+export default function CodeEditor({ code, language, displayLanguage, onCodeChange, onLanguageChange, darkMode, currentLine, nextLine }) {
   const fileInputRef = useRef(null);
   const codeRef = useRef(null);
+  const highlightRef = useRef(null);
   const textareaRef = useRef(null);
+  const activeLineRef = useRef(null);
 
   const prismLang = LANG_MAP[displayLanguage] || 'javascript';
+
+  // Scroll active line into view when currentLine changes
+  useEffect(() => {
+    if (currentLine && activeLineRef.current) {
+      activeLineRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [currentLine]);
 
   // Re-highlight whenever code or language changes
   useEffect(() => {
@@ -75,6 +84,11 @@ export default function CodeEditor({ code, language, displayLanguage, onCodeChan
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+
+      // Keep the highlight layer height in sync so it never “runs out” while scrolling.
+      if (highlightRef.current) {
+        highlightRef.current.style.height = textareaRef.current.style.height;
+      }
     }
   }, [code]);
 
@@ -124,6 +138,14 @@ export default function CodeEditor({ code, language, displayLanguage, onCodeChan
             </option>
           ))}
         </select>
+
+        {currentLine && (
+          <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 animate-pulse ${
+            darkMode ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40' : 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+          }`}>
+            <span>▶</span> Executing Line {currentLine}
+          </span>
+        )}
 
         <div className="flex items-center gap-1 ml-auto">
           {/* Paste from clipboard */}
@@ -192,32 +214,78 @@ export default function CodeEditor({ code, language, displayLanguage, onCodeChan
       {/* Inline highlighted editor */}
       <div
         className={`
-          flex rounded-xl overflow-auto font-mono text-sm
+          flex rounded-xl overflow-auto font-mono text-sm relative
           ${darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-gray-50 border border-gray-200'}
         `}
-        style={{ maxHeight: '60vh' }}
+        style={{ maxHeight: '65vh' }}
       >
         {/* Line numbers */}
         <div
           aria-hidden="true"
           className={`
-            select-none text-right px-3 py-4 min-w-[3rem] shrink-0 sticky left-0
-            ${darkMode ? 'text-gray-600 bg-gray-800/60' : 'text-gray-400 bg-gray-100'}
+            select-none text-right px-2 py-4 min-w-[3.25rem] shrink-0 sticky left-0 z-10
+            ${darkMode ? 'text-gray-600 bg-gray-900/90' : 'text-gray-400 bg-gray-50/90'}
           `}
         >
-          {Array.from({ length: lines }, (_, i) => (
-            <div key={i} className="leading-[1.6] text-xs font-mono">
-              {i + 1}
-            </div>
-          ))}
+          {Array.from({ length: lines }, (_, i) => {
+            const lineNo = i + 1;
+            const isActive = lineNo === currentLine;
+            const isNext = lineNo === nextLine && !isActive;
+            return (
+              <div
+                key={i}
+                ref={isActive ? activeLineRef : null}
+                className={`leading-[1.6] text-xs font-mono flex items-center justify-end gap-1 ${
+                  isActive
+                    ? 'text-yellow-400 font-bold'
+                    : isNext
+                    ? 'text-blue-400 font-semibold'
+                    : darkMode
+                    ? 'text-gray-600'
+                    : 'text-gray-400'
+                }`}
+              >
+                {isActive && <span className="text-yellow-400 text-[10px] shrink-0">▶</span>}
+                <span>{lineNo}</span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Overlay: highlight layer behind transparent textarea */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0">
+          {/* Active line background highlight layer */}
+          <div className="absolute inset-0 pointer-events-none p-4 font-mono text-sm overflow-hidden" style={{ zIndex: 0 }}>
+            {Array.from({ length: lines }, (_, i) => {
+              const lineNo = i + 1;
+              const isActive = lineNo === currentLine;
+              const isNext = lineNo === nextLine && !isActive;
+              return (
+                <div
+                  key={i}
+                  className={`leading-[1.6] h-[1.6em] w-full transition-colors duration-150 ${
+                    isActive
+                      ? darkMode
+                        ? 'bg-yellow-500/25 border-l-4 border-yellow-400'
+                        : 'bg-yellow-200/80 border-l-4 border-yellow-500'
+                      : isNext
+                      ? darkMode
+                        ? 'bg-blue-500/15 border-l-4 border-blue-500/50'
+                        : 'bg-blue-100/70 border-l-4 border-blue-400'
+                      : ''
+                  }`}
+                />
+              );
+            })}
+          </div>
+
           {/* Syntax-highlighted layer */}
           <pre
+            ref={highlightRef}
             aria-hidden="true"
-            className="code-highlight absolute inset-0 m-0 p-4 pointer-events-none overflow-hidden"
+            className={`code-highlight absolute inset-0 m-0 p-4 pointer-events-none overflow-hidden ${
+              darkMode ? 'text-gray-200' : 'text-gray-800'
+            }`}
             style={{ background: 'transparent', zIndex: 1 }}
           >
             <code

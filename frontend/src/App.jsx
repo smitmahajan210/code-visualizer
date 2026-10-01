@@ -4,7 +4,6 @@ import ThemeToggle from './components/ThemeToggle';
 import CodeEditor from './components/CodeEditor';
 import CodeVisualization from './components/CodeVisualization';
 import ExecutionVisualizer from './components/ExecutionVisualizer';
-import Stats from './components/Stats';
 import { FiCode, FiLoader, FiBarChart2, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 
 const API_BASE = '/api';
@@ -20,8 +19,15 @@ export default function App() {
   const [error, setError] = useState(null);
   const [debounceTimer, setDebounceTimer] = useState(null);
   const [structureOpen, setStructureOpen] = useState(false);
+  const [activeLine, setActiveLine] = useState(null);
+  const [nextLine, setNextLine] = useState(null);
 
   const toggleTheme = useCallback(() => setDarkMode((d) => !d), []);
+
+  const handleStepChange = useCallback((currentStep, nextStep) => {
+    setActiveLine(currentStep?.line ?? null);
+    setNextLine(nextStep?.line ?? null);
+  }, []);
 
   const analyzeCode = useCallback(async (codeToAnalyze, lang) => {
     if (!codeToAnalyze.trim()) {
@@ -62,7 +68,7 @@ export default function App() {
   const displayLanguage = language === 'auto' ? detectedLanguage : language;
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${darkMode ? 'gradient-bg-dark' : 'gradient-bg-light'}`}>
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${darkMode ? 'gradient-bg-dark' : 'gradient-bg-light light-theme'}`}>
       {/* ── Header ───────────────────────────────────────────────────── */}
       <header className={`sticky top-0 z-20 px-4 py-3 flex items-center justify-between ${darkMode ? 'glass-dark' : 'glass-light'}`}>
         <div className="flex items-center gap-3">
@@ -94,9 +100,6 @@ export default function App() {
       {/* ── Main ─────────────────────────────────────────────────────── */}
       <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 py-4 flex flex-col gap-4">
 
-        {/* Stats bar */}
-        {analysis?.metrics && <Stats metrics={analysis.metrics} darkMode={darkMode} />}
-
         {/* Error banner */}
         {error && (
           <div className={`p-3 rounded-xl text-sm ${darkMode ? 'bg-red-900/40 border border-red-700 text-red-300' : 'bg-red-50 border border-red-200 text-red-700'}`}>
@@ -120,9 +123,15 @@ export default function App() {
               code={code}
               language={language}
               displayLanguage={displayLanguage}
-              onCodeChange={setCode}
+              onCodeChange={(newCode) => {
+                setCode(newCode);
+                setActiveLine(null);
+                setNextLine(null);
+              }}
               onLanguageChange={setLanguage}
               darkMode={darkMode}
+              currentLine={activeLine}
+              nextLine={nextLine}
             />
 
             {/* Collapsible structure analysis */}
@@ -158,13 +167,14 @@ export default function App() {
           <div className={`flex flex-col lg:flex-1 rounded-2xl p-4 ${darkMode ? 'glass-dark' : 'glass-light'}`}>
             <div className="mb-3">
               <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Step-by-Step Execution
+                Step-by-Step Execution Visualizer
               </span>
             </div>
             <ExecutionVisualizer
               code={code}
               language={displayLanguage}
               darkMode={darkMode}
+              onStepChange={handleStepChange}
             />
           </div>
         </div>
