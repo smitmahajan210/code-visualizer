@@ -11,9 +11,14 @@ const TIMEOUT_MS = 10_000; // 10 s hard limit
 
 function tracePython(code) {
   return new Promise((resolve, reject) => {
-    const proc = spawn('python3', [TRACER_SCRIPT], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    const pythonCmd = process.env.PYTHON_PATH || 'python3';
+    let proc;
+    try {
+      proc = spawn(pythonCmd, [TRACER_SCRIPT], { stdio: ['pipe', 'pipe', 'pipe'] });
+    } catch {
+      proc = spawn('python', [TRACER_SCRIPT], { stdio: ['pipe', 'pipe', 'pipe'] });
+    }
+
 
     let stdout = '';
     let stderr = '';
